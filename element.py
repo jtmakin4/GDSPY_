@@ -146,7 +146,7 @@ class Geometry:
 
 class CPW(Geometry):
     # копланары должны создаваться уже внутри скетча,  но в принципе можно задавать как хочешь
-    def __init__(self, port1, port2, s, w, r=None, gap=300, inter_dist=300, via_d=300):
+    def __init__(self, port1, port2, s, w, r=None, gap=300, inter_dist=300, via_d=300, path=None):
         super().__init__(name='cpw')
         self.isInverted[0] = True
         self.isInverted[2] = True
@@ -159,16 +159,22 @@ class CPW(Geometry):
         self.inter_dist = inter_dist
         self.via_d = via_d
 
+        if path == None:
+            self._path, self.Rmax = self.getTrajectory()
 
-        self._path, self.Rmax = self.getTrajectory()
-
-        if r != None:
-            if r > self.Rmax:
-                raise ValueError
+            if r != None:
+                if r > self.Rmax:
+                    raise ValueError
+                else:
+                    self._r = r
             else:
-                self._r = r
+                self._r = self.Rmax
         else:
-            self._r = self.Rmax
+            self._path = path
+            if r != None:
+                self._r = r
+            else:
+                raise ValueError
 
         self._in_point = self._path[0]
         self._out_point = self._path[-1]
@@ -363,6 +369,7 @@ class CPW(Geometry):
             points_array = np.vstack([points_array, p - vec * offset])
         # todo check condition
         return points_array[1:]
+
 
 class Mounting(Geometry):
     # по идее в подобных дочерних классах должна быть только их инициализация, остольные функции прописаны в классе-родителе. Возможно это можно сделать еще более просто.

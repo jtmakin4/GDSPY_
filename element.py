@@ -202,7 +202,7 @@ class CPW(Geometry):
 
         w_polygon = gdspy.boolean(w_polygon, s_polygon, 'not')
 
-        vias_polygon = gdspy.PolygonSet([])
+        via_polygon = gdspy.PolygonSet([])
 
         offset = self.via_d + 300 + self._s / 2 + self._w
 
@@ -213,11 +213,11 @@ class CPW(Geometry):
                 via_d,
                 tolerance=curve_tolerance * 0.1,
             )
-            vias_polygon = gdspy.boolean(vias_polygon, arc, 'or')
+            via_polygon = gdspy.boolean(via_polygon, arc, 'or')
 
 
         # Рисуем
-        self.boolean(vias_polygon, 'or', 3)
+        self.boolean(via_polygon, 'or', 3)
         self.boolean(w_polygon, 'or', 0)
         self.boolean(tech_polygon, 'or', 5)
 

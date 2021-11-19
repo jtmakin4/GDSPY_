@@ -159,10 +159,10 @@ class CPW(Geometry):
         self.inter_dist = inter_dist
         self.via_d = via_d
 
-        if path == None:
+        if path is None:
             self._path, self.Rmax = self.getTrajectory()
 
-            if r != None:
+            if r is not None:
                 if r > self.Rmax:
                     raise ValueError
                 else:
@@ -171,7 +171,7 @@ class CPW(Geometry):
                 self._r = self.Rmax
         else:
             self._path = path
-            if r != None:
+            if r is not None:
                 self._r = r
             else:
                 raise ValueError
@@ -194,11 +194,11 @@ class CPW(Geometry):
                                    precision=curve_precision)
 
         tech_polygon = gdspy.FlexPath(self._path,
-                               self._s + 2 * self._w + 2 * (300 + self.via_d),
-                               corners="circular bend",
-                               bend_radius=self._r,
-                               tolerance=curve_tolerance,
-                               precision=curve_precision)
+                                      self._s + 2 * self._w + 2 * (300 + self.via_d),
+                                      corners="circular bend",
+                                      bend_radius=self._r,
+                                      tolerance=curve_tolerance,
+                                      precision=curve_precision)
 
         w_polygon = gdspy.boolean(w_polygon, s_polygon, 'not')
 

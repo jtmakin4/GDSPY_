@@ -205,7 +205,7 @@ class CoplanarWaveguide:
         layer_boolean(cell, tech_layer, tech_mask, 'not')
 
 
-        offset = via_d + 300+ self._s/2 + self._w
+        offset = via_d + 300 + self._s/2 + self._w
         step = 500
         point = self._create_vias_array(self._path, self._r, offset, step)
         for i in range(0, len(point)):

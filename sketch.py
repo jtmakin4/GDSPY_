@@ -4,6 +4,10 @@ from element import *
 class Sketch(Geometry):
     def __init__(self, name, unit=1e-6, precision=1e-9, layers=None):
         super().__init__()
+        del self.isInverted
+        del self.ports
+
+        self.geometries = []
 
         self.unit = unit
         self.precision = precision
@@ -12,11 +16,11 @@ class Sketch(Geometry):
         self.lib = gdspy.GdsLibrary(name='library', unit=self.unit, precision=self.precision)
         self.cell = self.lib.new_cell(self.name)
 
-        baseGeometry = gdspy.Round((0, 0), 100)
+        baseGeometry = gdspy.Round((0, 0), 50e3)
         for i in [0, 1, 2]:
             self.boolean(baseGeometry, 'or', i)
 
-        del self.isInverted
+
 
     def setUnit(self, value):
         self.unit = value
@@ -25,6 +29,8 @@ class Sketch(Geometry):
         self.precision = value
 
     def addGeometry(self, geometry):
+        geometry.flaot = False
+        self.geometries.append(geometry)
         for i in geometry.layers:
             if geometry.isInverted[i]:
                 try:
@@ -48,3 +54,4 @@ class Sketch(Geometry):
 
     def saveSVG(self, filename):
         self.cell.write_svg(filename + '.svg')
+

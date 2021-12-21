@@ -89,18 +89,21 @@ class Geometry:
             self.position = (self.position[0] + dposition[0], self.position[1] + dposition[1])
 
     def rotate(self, dangle, center=None):
-        if center == None:
-            if self.float:
-                self.elements = [element.rotate(dangle, center=self.position) for element in self.elements]
-                for i in range(0, len(self.ports)):
-                    self.ports[i].rotate(dangle, center=self.position)
-                self.angle += dangle
-        else:
-            if self.float:
-                self.elements = [element.rotate(dangle, center=center) for element in self.elements]
-                for i in range(0, len(self.ports)):
-                    self.ports[i].rotate(dangle, center=center)
-                self.angle += dangle
+        if self.float:
+            if center == None:
+                center = self.position
+            else:
+                rmatrix = np.array([[np.cos(dangle), -np.sin(dangle)], [np.sin(dangle), np.cos(dangle)]])
+                self.position = tuple(np.dot(rmatrix, np.array(self.position) - np.array(center)) + np.array(center))
+
+            self.elements = [element.rotate(dangle, center=center) for element in self.elements]
+
+            for i in range(0, len(self.ports)):
+                self.ports[i].rotate(dangle, center=center)
+
+            self.angle += dangle
+
+
 
     def draw(self):
         gdspy.current_library = gdspy.GdsLibrary(name='', unit=self.unit, precision=self.precision)
@@ -192,6 +195,9 @@ class CPW(Geometry):
             else:
                 raise ValueError
 
+        print(self._path)
+        print(self._r)
+
         self._in_point = self._path[0]
         self._out_point = self._path[-1]
 
@@ -221,21 +227,6 @@ class CPW(Geometry):
                                    tolerance=curve_tolerance,
                                    precision=curve_precision)
 
-        # tech_polygon = gdspy.FlexPath(self._path,
-        #                               self._s + 2 * self._w + 2 * 300,
-        #                               corners="circular bend",
-        #                               bend_radius=self._r,
-        #                               tolerance=curve_tolerance,
-        #                               precision=curve_precision)
-
-        # tech_polygon = gdspy.FlexPath(self._path,
-        #                               300,
-        #                               offset=[self._s/2 + self._w + 300 + 300/2, -self._s/2 - self._w - 300 - 300/2],
-        #                               corners="circular bend",
-        #                               ends='round',
-        #                               bend_radius=self._r,
-        #                               tolerance=curve_tolerance,
-        #                               precision=curve_precision)
 
         w_polygon = gdspy.boolean(w_polygon, s_polygon, 'not')
 
@@ -640,7 +631,7 @@ class ChipHole(Geometry):
 
         if throughAll:
             self.boolean(gdspy.Rectangle((-a / 2, -a / 2), (a / 2, a / 2)).fillet(r), 'or', 1)
-            self.boolean(gdspy.Rectangle((-a / 2 - TH, -a / 2 - TH), (a / 2 + TH, a / 2 + TH)).fillet(r + TH), 'or', 0)
+            self.boolean(gdspy.Rectangle((-a / 2 - TH + 1e3 + 50, -a / 2 - TH + 1e3 + 50), (a / 2 + TH - 1e3 - 50, a / 2 + TH - 1e3 - 50)).fillet(r + TH - 1e3 - 50), 'or', 0)
             self.boolean(gdspy.Rectangle((-a / 2 - TH, -a / 2 - TH), (a / 2 + TH, a / 2 + TH)).fillet(r + TH), 'or', 2)
         else:
             self.boolean(gdspy.Rectangle((-a / 2, -a / 2), (a / 2, a / 2)).fillet(r), 'or', 6)

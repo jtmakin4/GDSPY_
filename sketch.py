@@ -16,10 +16,6 @@ class Sketch(Geometry):
         self.lib = gdspy.GdsLibrary(name='library', unit=self.unit, precision=self.precision)
         self.cell = self.lib.new_cell(self.name)
 
-        # baseGeometry = gdspy.Round((0, 0), 53e3/2)
-        # for i in [0, 1, 2]:
-        #     self.boolean(baseGeometry, 'or', i)
-
 
     def setUnit(self, value):
         self.unit = value

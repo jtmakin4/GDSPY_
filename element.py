@@ -1,8 +1,10 @@
 import gdspy
 import numpy as np
 
+# curve_tolerance = 1e0
+
 curve_tolerance = 1e0
-curve_precision = 1e-1
+curve_precision = 1e-3
 port_layer = 4
 
 
@@ -476,7 +478,6 @@ class SMP_PCB(Geometry):
         nViaT = 18
         rViaT = 300 / 2
         rViaPosT = 2000
-        viaGapLimit = 300
         s = 1000
         w = 330
         gap = 300
@@ -509,7 +510,7 @@ class SMP_PCB(Geometry):
             self.boolean(singleViaUp, 'or', 3)
 
         # разъем со стороны копланаров
-        cpw = gdspy.Round((0, 0), rw)
+        cpw = gdspy.Round((0, 0), rw, tolerance=curve_tolerance)
         cpw = gdspy.boolean(cpw, gdspy.Rectangle((0, s / 2 + w), (length, -s / 2 - w)), 'or')
         cpw = gdspy.boolean(cpw, gdspy.Round((0, 0), rs, tolerance=curve_tolerance), 'not')
         cpw = gdspy.boolean(cpw, gdspy.Rectangle((0, s / 2), (length, -s / 2)), 'not')
@@ -524,7 +525,7 @@ class SMP_PCB(Geometry):
         # центральное отверстие
         rhole = 800 / 2
         for i in [0, 1, 2]:
-            self.boolean(gdspy.Round((0, 0), rhole), 'or', i)
+            self.boolean(gdspy.Round((0, 0), rhole, tolerance=curve_tolerance), 'or', i)
 
         # крепления
         rHMount = 1000 / 2
@@ -563,7 +564,8 @@ class SMP_PCB(Geometry):
         self.boolean(gdspy.Round((0, 0), aHMount / 2 * np.sqrt(2) - rTHInner,
                                  inner_radius=aHMount / 2 * np.sqrt(2) - rTHOuter,
                                  initial_angle=45 * np.pi / 180,
-                                 final_angle=315 * np.pi / 180), 'or', 0)
+                                 final_angle=315 * np.pi / 180,
+                                 tolerance=curve_tolerance), 'or', 0)
 
         # задаем порты
         self.addPort(position=(length, 0), angle=0.)
@@ -648,20 +650,20 @@ class ChipHole(Geometry):
             self.boolean(gdspy.Rectangle((-a / 2 - 300, -a / 2 - 300), (a / 2 + 300, a / 2 + 300)).fillet(r + 300), 'or', 0)
             self.boolean(gdspy.Rectangle((-a / 2 - TH, -a / 2 - TH), (a / 2 + TH, a / 2 + TH)).fillet(r + TH), 'or', 2)
 
-            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r), 'or', 1)
-            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r), 'or', 1)
-            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r), 'or', 1)
-            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r), 'or', 1)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r, tolerance=curve_tolerance), 'or', 1)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r, tolerance=curve_tolerance), 'or', 1)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r, tolerance=curve_tolerance), 'or', 1)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r, tolerance=curve_tolerance), 'or', 1)
 
-            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 2)
-            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 2)
-            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 2)
-            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 2)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 2)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 2)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 2)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 2)
 
-            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 0)
-            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 0)
-            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 0)
-            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 0)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 0)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 0)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 0)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300, tolerance=curve_tolerance), 'or', 0)
         else:
             self.boolean(gdspy.Rectangle((-a / 2, -a / 2), (a / 2, a / 2)).fillet(r), 'or', 6)
             self.boolean(gdspy.Rectangle((-a / 2 - TH, -a / 2 - TH), (a / 2 + TH, a / 2 + TH)).fillet(r + TH), 'or', 2)

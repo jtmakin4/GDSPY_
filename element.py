@@ -88,6 +88,14 @@ class Geometry:
                 self.ports[i].translate(dposition)
             self.position = (self.position[0] + dposition[0], self.position[1] + dposition[1])
 
+    def placeOn(self, position):
+        if self.float:
+            dposition = -np.array(self.position) + np.array(position)
+            self.elements = [element.translate(dposition[0], dposition[1]) for element in self.elements]
+            for i in range(0, len(self.ports)):
+                self.ports[i].translate(dposition)
+            self.position = (self.position[0] + dposition[0], self.position[1] + dposition[1])
+
     def rotate(self, dangle, center=None):
         if self.float:
             if center == None:
@@ -208,12 +216,18 @@ class CPW(Geometry):
                                    tolerance=curve_tolerance,
                                    precision=curve_precision)
 
-        sentral_line = gdspy.FlexPath(self._path,
-                                   0.01,
-                                   corners="circular bend",
-                                   bend_radius=self._r,
-                                   tolerance=curve_tolerance,
-                                   precision=curve_precision)
+        if self._r != None:
+            sentral_line = gdspy.FlexPath(self._path,
+                                       0.01,
+                                       corners="circular bend",
+                                       bend_radius=self._r,
+                                       tolerance=curve_tolerance,
+                                       precision=curve_precision)
+        else:
+            sentral_line = gdspy.FlexPath(self._path,
+                                       0.01,
+                                       tolerance=curve_tolerance,
+                                       precision=curve_precision)
 
         self.length = round(sentral_line.area()/0.01, 0)
         viaNum = self.length/(inter_dist+2*via_r)
@@ -294,24 +308,22 @@ class CPW(Geometry):
 
         if np.dot(-delt_r, o1) > 0:
             s1 = 1
-        elif np.dot(-delt_r, o1) < 0:
+        if np.dot(-delt_r, o1) < 0:
             s1 = -1
-        else:
+        if abs(np.dot(delt_r, o2)) < 1e-6:
             s1 = 0
         # todo добавить обработку случая, s1 = 0, s2 != 0
         if np.dot(delt_r, o2) > 0:
             s2 = 1
-        elif np.dot(delt_r, o2) < 0:
+        if np.dot(delt_r, o2) < 0:
             s2 = -1
-        else:
+        if abs(np.dot(delt_r, o2)) < 1e-6:
             s2 = 0
-
-        # s1 = -1
-        # s2 = -1
 
         if s1 == 0 and s2 == 0:
             path = [r1,  r2]
             Rmax = None
+
         elif (s1 != 0 and s2 == 0) or (s1 == 0 and s2 != 0):
             pass
             # по идее здесь будет кривая с произвольным скруглением, хз
@@ -336,8 +348,10 @@ class CPW(Geometry):
             x1 = np.dot(p - r1, delt_c) / np.dot(a1, delt_c)
             x2 = np.dot(p - r2, delt_c) / np.dot(a2, delt_c)
             path = [r1, r1 + a1 * x1, r2 + a2 * x2, r2]
-
-        return path, Rmax*0.99
+        if Rmax != None:
+            return path, Rmax*0.99
+        else:
+            return path, Rmax
 
     # Старые функции для нахождения положения сквозных отверстий
     # todo здесь не обработан случай, когда кривая состтоит только из окружностей возможно внутри уменьшать радиус на 0.01, что не повлияет на геометрию, но все равно норм будет
@@ -593,11 +607,11 @@ class PCB_CHIP(Geometry):
         wb = 580
         gap = 300
         cpwb = gdspy.Round((500 + 200, 0), sb / 2 + wb, tolerance=curve_tolerance)
-        cpwb = gdspy.boolean(cpwb, gdspy.Rectangle((-sb / 2 - 300, sb / 2 + wb), (500 + 200, -sb / 2 - wb)), 'or')
+        cpwb = gdspy.boolean(cpwb, gdspy.Rectangle((-sb / 2 - 500-700, sb / 2 + wb), (500 + 200, -sb / 2 - wb)), 'or')
 
         cpwb = gdspy.boolean(cpwb, gdspy.Round((500 + 200, 0), sb / 2, tolerance=curve_tolerance), 'not')
-        cpwb = gdspy.boolean(cpwb, gdspy.Round((0, 0), sb / 2, tolerance=curve_tolerance), 'not')
-        cpwb = gdspy.boolean(cpwb, gdspy.Rectangle((0, sb / 2), (500 + 200, -sb / 2)), 'not')
+        cpwb = gdspy.boolean(cpwb, gdspy.Round((-700, 0), sb / 2, tolerance=curve_tolerance), 'not')
+        cpwb = gdspy.boolean(cpwb, gdspy.Rectangle((-700, sb / 2), (500 + 200, -sb / 2)), 'not')
         self.boolean(cpwb, 'or', 2)
 
         # сквозные отверстия с боков
@@ -616,7 +630,7 @@ class PCB_CHIP(Geometry):
 
         # задаем порты
         self.addPort(position=(length, 0), angle=0.)
-        self.addPort(position=(-sb / 2, 0), angle=180 * np.pi / 180)
+        self.addPort(position=(-sb / 2-700, 0), angle=180 * np.pi / 180)
 
 
 class ChipHole(Geometry):
@@ -631,8 +645,23 @@ class ChipHole(Geometry):
 
         if throughAll:
             self.boolean(gdspy.Rectangle((-a / 2, -a / 2), (a / 2, a / 2)).fillet(r), 'or', 1)
-            self.boolean(gdspy.Rectangle((-a / 2 - TH + 1e3 + 50, -a / 2 - TH + 1e3 + 50), (a / 2 + TH - 1e3 - 50, a / 2 + TH - 1e3 - 50)).fillet(r + TH - 1e3 - 50), 'or', 0)
+            self.boolean(gdspy.Rectangle((-a / 2 - 300, -a / 2 - 300), (a / 2 + 300, a / 2 + 300)).fillet(r + 300), 'or', 0)
             self.boolean(gdspy.Rectangle((-a / 2 - TH, -a / 2 - TH), (a / 2 + TH, a / 2 + TH)).fillet(r + TH), 'or', 2)
+
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r), 'or', 1)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r), 'or', 1)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r), 'or', 1)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r), 'or', 1)
+
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 2)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 2)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 2)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 2)
+
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 0)
+            self.boolean(gdspy.Round(center=(-a / 2 + r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 0)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), -a / 2 + r/np.sqrt(2)), radius=r + 300), 'or', 0)
+            self.boolean(gdspy.Round(center=(a / 2 - r/np.sqrt(2), a / 2 - r/np.sqrt(2)), radius=r + 300), 'or', 0)
         else:
             self.boolean(gdspy.Rectangle((-a / 2, -a / 2), (a / 2, a / 2)).fillet(r), 'or', 6)
             self.boolean(gdspy.Rectangle((-a / 2 - TH, -a / 2 - TH), (a / 2 + TH, a / 2 + TH)).fillet(r + TH), 'or', 2)

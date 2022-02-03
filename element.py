@@ -185,7 +185,10 @@ class CPW(Geometry):
         self._s = s
         self._w = w
         self._g = gap
-        # self.inter_dist = inter_dist + via_r*2
+        if inter_dist != None:
+            self.inter_dist = inter_dist + via_r*2
+        else:
+            self.inter_dist = None
         self.via_r = via_r
 
         if path is None:
@@ -218,23 +221,24 @@ class CPW(Geometry):
                                    tolerance=curve_tolerance,
                                    precision=curve_precision)
 
+        # if self._r != None or abs(self._r) >= 1e-3:
         if self._r != None:
             sentral_line = gdspy.FlexPath(self._path,
-                                       0.01,
+                                       self._s*0.01,
                                        corners="circular bend",
                                        bend_radius=self._r,
                                        tolerance=curve_tolerance,
                                        precision=curve_precision)
         else:
             sentral_line = gdspy.FlexPath(self._path,
-                                       0.01,
+                                       self._s*0.01,
                                        tolerance=curve_tolerance,
                                        precision=curve_precision)
 
-        self.length = round(sentral_line.area()/0.01, 0)
-        viaNum = self.length/(inter_dist+2*via_r)
-        viaNum = int(round(viaNum, 0))
-        self.inter_dist = self.length/viaNum
+        # self.boolean(sentral_line, 'or', 0)
+        self.length = round(sentral_line.area()/0.01/self._s, 0)
+        print('len = ' + str(self.length))
+
 
         s_polygon = gdspy.FlexPath(self._path,
                                    self._s,
@@ -246,49 +250,56 @@ class CPW(Geometry):
 
         w_polygon = gdspy.boolean(w_polygon, s_polygon, 'not')
 
-        via_polygon = gdspy.PolygonSet([])
 
-        offset = self.via_r + 300 + self._s / 2 + self._w
 
-        via_centers_left, via_centers_right = self._create_via_centers(self._path, self._r, offset, self.inter_dist)
 
-        if not chessOrder:
-            for i in range(0, len(via_centers_left)):
-                arc = gdspy.Round(
-                    via_centers_left[i],
-                    via_r,
-                    tolerance=curve_tolerance * 0.1,
-                )
-                via_polygon = gdspy.boolean(via_polygon, arc, 'or')
-            for i in range(0, len(via_centers_right)):
-                arc = gdspy.Round(
-                    via_centers_right[i],
-                    via_r,
-                    tolerance=curve_tolerance * 0.1,
-                )
-                via_polygon = gdspy.boolean(via_polygon, arc, 'or')
-        else:
-            for i in range(0, len(via_centers_left)):
-                if i % 2 == 0:
+        # Рисуем
+
+        self.boolean(w_polygon, 'or', 0)
+
+        if self.inter_dist != None:
+            viaNum = self.length / (inter_dist + 2 * via_r)
+            viaNum = int(round(viaNum, 0))
+            self.inter_dist = self.length / viaNum
+            via_polygon = gdspy.PolygonSet([])
+
+            offset = self.via_r + 300 + self._s / 2 + self._w
+
+            via_centers_left, via_centers_right = self._create_via_centers(self._path, self._r, offset, self.inter_dist)
+
+            if not chessOrder:
+                for i in range(0, len(via_centers_left)):
                     arc = gdspy.Round(
                         via_centers_left[i],
                         via_r,
                         tolerance=curve_tolerance * 0.1,
                     )
                     via_polygon = gdspy.boolean(via_polygon, arc, 'or')
-            for i in range(0, len(via_centers_right)):
-                if i % 2 == 1:
+                for i in range(0, len(via_centers_right)):
                     arc = gdspy.Round(
                         via_centers_right[i],
                         via_r,
                         tolerance=curve_tolerance * 0.1,
                     )
                     via_polygon = gdspy.boolean(via_polygon, arc, 'or')
-
-
-        # Рисуем
-        self.boolean(via_polygon, 'or', 3)
-        self.boolean(w_polygon, 'or', 0)
+            else:
+                for i in range(0, len(via_centers_left)):
+                    if i % 2 == 0:
+                        arc = gdspy.Round(
+                            via_centers_left[i],
+                            via_r,
+                            tolerance=curve_tolerance * 0.1,
+                        )
+                        via_polygon = gdspy.boolean(via_polygon, arc, 'or')
+                for i in range(0, len(via_centers_right)):
+                    if i % 2 == 1:
+                        arc = gdspy.Round(
+                            via_centers_right[i],
+                            via_r,
+                            tolerance=curve_tolerance * 0.1,
+                        )
+                        via_polygon = gdspy.boolean(via_polygon, arc, 'or')
+            self.boolean(via_polygon, 'or', 3)
         # self.boolean(tech_polygon, 'or', 5)
 
     def getTrajectory(self):
@@ -321,25 +332,26 @@ class CPW(Geometry):
             s2 = -1
         if abs(np.dot(delt_r, o2)) < 1e-6:
             s2 = 0
-
+        print(s1, s2)
         if s1 == 0 and s2 == 0:
             path = [r1,  r2]
             Rmax = None
+            return path, Rmax
 
-        elif (s1 != 0 and s2 == 0) or (s1 == 0 and s2 != 0):
-            pass
-            # по идее здесь будет кривая с произвольным скруглением, хз
-        else:
-            if (1 + s1 * s2 * np.dot(o1, o2)) > 1e-9:
-                delt_o = s1 * o1 - s2 * o2
-                D = np.dot(delt_o, delt_r) ** 2
-                D += 2 * np.dot(delt_r, delt_r) * (1 + s1 * s2 * np.dot(o1, o2))
-                Rmax = np.dot(delt_o, delt_r) + np.sqrt(D)
-                Rmax /= (2 * (1 + s1 * s2 * np.dot(o1, o2)))
+        if (s1 == 0 and s2 != 0) or (s1 != 0 and s2 == 0):
+            if s1 == 0 and s2 != 0:
+                s1 = 1
             else:
-                Rmax = -np.dot(delt_r, delt_r) / 2 / np.dot(delt_r, delt_r)
+                s2 = 1
+            # if s2 == 0 and s1 != 0:
+            #     s2 = 1
 
-            Rmax = round(Rmax/1000, 1)*1000
+            delt_o = s1 * o1 - s2 * o2
+            D = np.dot(delt_o, delt_r) ** 2
+            D += 2 * np.dot(delt_r, delt_r) * (1 + s1 * s2 * np.dot(o1, o2))
+            Rmax = np.dot(delt_o, delt_r) + np.sqrt(D)
+            Rmax /= (2 * (1 + s1 * s2 * np.dot(o1, o2)))
+            Rmax = round(Rmax / 1000, 1) * 1000
             # print(Rmax)
             c1 = r1 + Rmax * s1 * o1
             c2 = r2 + Rmax * s2 * o2
@@ -350,10 +362,69 @@ class CPW(Geometry):
             x1 = np.dot(p - r1, delt_c) / np.dot(a1, delt_c)
             x2 = np.dot(p - r2, delt_c) / np.dot(a2, delt_c)
             path = [r1, r1 + a1 * x1, r2 + a2 * x2, r2]
-        if Rmax != None:
-            return path, Rmax*0.99
-        else:
-            return path, Rmax
+            return path, Rmax * 0.99
+
+
+            # по идее здесь будет кривая с произвольным скруглением, хз
+        if s1*s2 > 0:
+            if (1 + s1 * s2 * np.dot(o1, o2)) > 1e-9:
+                delt_o = s1 * o1 - s2 * o2
+                D = np.dot(delt_o, delt_r) ** 2
+                D += 2 * np.dot(delt_r, delt_r) * (1 + s1 * s2 * np.dot(o1, o2))
+                Rmax = np.dot(delt_o, delt_r) + np.sqrt(D)
+                Rmax /= (2 * (1 + s1 * s2 * np.dot(o1, o2)))
+                Rmax = round(Rmax / 1000, 1) * 1000
+                # print(Rmax)
+                c1 = r1 + Rmax * s1 * o1
+                c2 = r2 + Rmax * s2 * o2
+                delt_c = c1 - c2
+                p = (c1 + c2) / 2
+                # print(s1, s2)
+                # Создаем промужуточные точки на кривой
+                x1 = np.dot(p - r1, delt_c) / np.dot(a1, delt_c)
+                x2 = np.dot(p - r2, delt_c) / np.dot(a2, delt_c)
+                path = [r1, r1 + a1 * x1, r2 + a2 * x2, r2]
+                return path, Rmax * 0.99
+            else:
+                # # случай, если хочется строить по прямоугольнику
+                # dist = abs(np.dot(delt_r, a1))
+                # norm_dist = abs(np.dot(delt_r, o1))
+                # # Rmax = -np.dot(delt_r, delt_r) / 2 / np.dot(delt_r, delt_r)
+                # Rmax = min(dist, norm_dist)/2
+                #
+                #
+                # path = [r1, r1+a1*dist/2, r2+a2*dist/2, r2]
+                # print(Rmax)
+                # Rmax = round(Rmax / 1000, 1) * 1000
+                # return path, Rmax * 0.99
+                angle = np.arccos(np.dot(delt_r, a2)/np.sqrt(np.dot(delt_r, delt_r)))
+                t = np.sqrt(np.dot(delt_r, delt_r))/4/np.cos(angle)
+                Rmax = t/np.tan(angle)
+                Rmax = round(Rmax / 1000, 1) * 1000
+                path = [r1, r1 + a1 * t, r2 + a2 * t, r2]
+                return path, Rmax * 0.99
+
+        if s1*s2 < 0:
+            A = np.vstack((-a1, a2))
+            t1, t2 = np.linalg.solve(A.transpose(), delt_r)
+            print(t1, t2)
+            # print(np.dot(A,t)==delt_r)
+            r3 = r1+a1*t1 # точка пересечения прямых, выходящих из портов
+            print(r1+a1*t1, r2+a2*t2)
+            path = [r1, r3, r2]
+            a3 = -a1-a2
+            a3 = a3/np.sqrt(np.dot(a3, a3)) # биссектрисса
+            print(r3, a3)
+            if t1 > t2:
+                M = np.vstack((o2*s2, -a3))
+                Rmax = abs(np.linalg.solve(M.transpose(), r3-r2)[1])
+            else:
+                M = np.vstack((o1*s1, -a3))
+                Rmax = abs(np.linalg.solve(M.transpose(), r3-r1)[1])
+            Rmax = round(Rmax / 1000, 1) * 1000
+            return path, Rmax * 0.99
+
+
 
     # Старые функции для нахождения положения сквозных отверстий
     # todo здесь не обработан случай, когда кривая состтоит только из окружностей возможно внутри уменьшать радиус на 0.01, что не повлияет на геометрию, но все равно норм будет
